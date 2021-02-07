@@ -14,15 +14,13 @@ SMALL_FONT = love.graphics.newFont(16)
 
 push = require 'push'
 
-gameState = 'title'
-
 player1 = {
     x = 10, y = 10, score = 0
 }
 
 player2 = {
-    x = VIRTUAL_WIDTH - PADDLE_WIDTH - 10,
-    y = VIRTUAL_HEIGHT - PADDLE_HEIGHT - 10,
+    x = VIRTUAL_WIDTH - 10 - PADDLE_WIDTH,
+    y = VIRTUAL_HEIGHT - 10 - PADDLE_HEIGHT,
     score = 0
 }
 
@@ -31,6 +29,8 @@ ball = {
     y = VIRTUAL_HEIGHT / 2 - BALL_SIZE / 2,
     dx = 0, dy = 0
 }
+
+gameState = 'title'
 
 function love.load()
     math.randomseed(os.time())
@@ -57,30 +57,28 @@ function love.update(dt)
         ball.x = ball.x + ball.dx * dt
         ball.y = ball.y + ball.dy * dt
 
+        if ball.x <= 0 then
+            player2.score = player2.score + 1
+            resetBall()
+            gameState = 'serve'
+        elseif ball.x >= VIRTUAL_WIDTH - BALL_SIZE then
+            player1.score = player1.score + 1
+            resetBall()
+            gameState = 'serve'
+        end
+
         if ball.y <= 0 then
             ball.dy = -ball.dy
         elseif ball.y >= VIRTUAL_HEIGHT - BALL_SIZE then
             ball.dy = -ball.dy
         end
 
-        if collides(ball, player1) then
+        if collides(player1, ball) then
+            ball.dx = -ball.dx * 1.02
             ball.x = player1.x + PADDLE_WIDTH
-            ball.dx = -ball.dx
-        elseif collides(ball, player2) then
+        elseif collides(player2, ball) then
+            ball.dx = -ball.dx * 1.02
             ball.x = player2.x - BALL_SIZE
-            ball.dx = -ball.dx
-        end
-
-        if ball.x <= 0 then
-            resetBall()
-            gameState = 'serve'
-            player2.score = player2.score + 1
-            if player2.score >= 3 then gameState = 'win' end
-        elseif ball.x >= VIRTUAL_WIDTH - BALL_SIZE then
-            resetBall()
-            gameState = 'serve'
-            player1.score = player1.score + 1
-            if player1.score >= 3 then gameState = 'win' end
         end
     end
 end
@@ -95,47 +93,39 @@ function love.keypressed(key)
             gameState = 'serve'
         elseif gameState == 'serve' then
             gameState = 'play'
-        elseif gameState == 'win' then
-            player1.score = 0
-            player2.score = 0
-            gameState = 'title'
         end
     end
 end
 
 function love.draw()
     push:start()
-    love.graphics.clear(40/255, 45/255, 52/255, 255/255)
+    love.graphics.clear(40/255, 45/255, 52/255, 1)
 
     if gameState == 'title' then
         love.graphics.setFont(LARGE_FONT)
         love.graphics.printf('Pre50 Pong', 0, 10, VIRTUAL_WIDTH, 'center')
         love.graphics.setFont(SMALL_FONT)
         love.graphics.printf('Press Enter', 0, VIRTUAL_HEIGHT - 32, VIRTUAL_WIDTH, 'center')
-    elseif gameState == 'serve' then
-        love.graphics.setFont(SMALL_FONT)
-        love.graphics.printf('Press Enter to Serve!', 0, 10, VIRTUAL_WIDTH, 'center')
-    elseif gameState == 'win' then
-        love.graphics.setFont(LARGE_FONT)
-        local winner = player1.score >= 3 and '1' or '2'
-        love.graphics.printf('Player ' .. winner .. ' wins!', 0, 10, VIRTUAL_WIDTH, 'center')
-        love.graphics.setFont(SMALL_FONT)
-        love.graphics.printf('Press Enter to Restart', 0, VIRTUAL_HEIGHT - 32, VIRTUAL_WIDTH, 'center')
     end
 
-    love.graphics.setFont(LARGE_FONT)
-    love.graphics.print(player1.score, VIRTUAL_WIDTH / 2 - 36, VIRTUAL_HEIGHT / 2 - 16)
-    love.graphics.print(player2.score, VIRTUAL_WIDTH / 2 + 16, VIRTUAL_HEIGHT / 2 - 16)
-    love.graphics.setFont(SMALL_FONT)
+    if gameState == 'serve' then
+        love.graphics.setFont(SMALL_FONT)
+        love.graphics.printf('Press Enter to Serve!', 0, 10, VIRTUAL_WIDTH, 'center')
+    end
 
     love.graphics.rectangle('fill', player1.x, player1.y, PADDLE_WIDTH, PADDLE_HEIGHT)
     love.graphics.rectangle('fill', player2.x, player2.y, PADDLE_WIDTH, PADDLE_HEIGHT)
     love.graphics.rectangle('fill', ball.x, ball.y, BALL_SIZE, BALL_SIZE)
+
+    love.graphics.setFont(LARGE_FONT)
+    love.graphics.print(player1.score, VIRTUAL_WIDTH / 2 - 36, VIRTUAL_HEIGHT / 2 - 16)
+    love.graphics.print(player2.score, VIRTUAL_WIDTH / 2  + 16, VIRTUAL_HEIGHT / 2 - 16)
+    love.graphics.setFont(SMALL_FONT)
     push:finish()
 end
 
-function collides(b, p)
-    return not (b.y > p.y + PADDLE_HEIGHT or b.x > p.x + PADDLE_WIDTH or p.y > b.y + BALL_SIZE or p.x > b.x + BALL_SIZE)
+function collides(p, b)
+    return not (p.x > b.x + BALL_SIZE or p.y > b.y + BALL_SIZE or b.x > p.x + PADDLE_WIDTH or b.y > p.y + PADDLE_HEIGHT)
 end
 
 function resetBall()
@@ -146,7 +136,6 @@ function resetBall()
     if math.random(2) == 1 then
         ball.dx = -ball.dx
     end
-
     ball.dy = 30 + math.random(60)
     if math.random(2) == 1 then
         ball.dy = -ball.dy
